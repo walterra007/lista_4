@@ -38,6 +38,10 @@ rm(pnud) # removendo base pnud
   # • Não deve haver docente com mais de 70 anos ou com menos de 18 anos;
   # • Não deve haver aluno com mais de 25 anos ou com menos de 1 ano;
 
+docentes_pe_sel <- docentes_pe %>% filter(NU_IDADE>17, NU_IDADE<71)
+
+matriculas_pe_sel <- matriculas_pe %>% filter(NU_IDADE>0, NU_IDADE<26)
+
 # Processando bases de dados do CENSO ESCOLAR conforme enunciado e adicionando 
 # outras variáveis
 
@@ -77,8 +81,6 @@ docentes_pe_sel <- docentes_pe %>% group_by(CO_MUNICIPIO) %>%
             docentes_superior = sum(TP_ESCOLARIDADE == 4, na.rm = T),
             docentes_contrato = sum(TP_TIPO_CONTRATACAO %in% c(1, 4), na.rm = T))
 
-docentes_pe_sel <- docentes_pe %>% filter(NU_IDADE>17, NU_IDADE<71)
-
 # verificacao
 dim(docentes_pe_sel)[1] == length(unique(docentes_pe$CO_MUNICIPIO))
 summary(docentes_pe_sel)
@@ -94,8 +96,6 @@ matriculas_pe_sel <- matricula_pe %>% group_by(CO_MUNICIPIO) %>%
             matriculas_educ_inf = sum(TP_ETAPA_ENSINO %in% c(1, 2), na.rm = T),
             matriculas_educ_fund = sum(TP_ETAPA_ENSINO %in% c(4:21, 41), na.rm = T),
             matriculas_educ_medio = sum(TP_ETAPA_ENSINO %in% c(25:38), na.rm = T))
-
-matriculas_pe_sel <- matriculas_pe %>% filter(NU_IDADE>0, NU_IDADE<26)
 
 # verificacao
 dim(matriculas_pe_sel)[1] == length(unique(matricula_pe$CO_MUNICIPIO))
@@ -165,20 +165,46 @@ names(censo_pnud_pe_sel)
 
 # salvando nova base
 setwd("/dados")
-save(censo_pnud_pe_sel, file = "2016_censo_pnud_pe_sel.RData")
-write.csv2(censo_pnud_pe_sel, file = "2016_censo_pnud_pe_sel.csv",
+docentes_alunos <- (docentes_matriculas_pe_sel$n_matriculas/docentes_matriculas_pe_sel$n_docentes)
+save(docentes_alunos, file = "docentes_alunos.Rdata")
+write.csv2(docentes_alunos, file = "docentes_alunos.csv",
            row.names = F)
 
 rm(list = ls())  # limpando area de trabalho
 
 # carregando nova base
 setwd("/dados")
-load("2016_censo_pnud_pe_sel.RData")
-
+load("docentes_alunos.RData")
 
   # • Apresente estatísticas descritivas do número de alunos por docente nos municípios do Estado;
+
+docente_matriculas_pe_sel <- docentes_pe_sel%>% full_join(matriculas_pe_sel, 
+                                                          by = c("CO_MUNICIPIO" = "CO_MUNICIPIO"))
+
+# Média Aritmética
+docentes_alunos <- docentes_matriculas_pe_sel$n_matriculas/docentes_matriculas_pe_sel$n_docentes
+
+# Mediana
+median(docente_matriculas_pe_sel$n_matriculas)/median(docente_matriculas_pe_sel$n_docentes)
+
+sumary(docente_matriculas_pe_sel$n_matriculas/docente_matriculas_pe_sel$n_docentes)
+
   # • Apresente o município com maior número de alunos por docente e seu IDHM;
+
+docente_matriculas_pe_sel_docentes_alunos <- censo_pnud_pe_sel%>%mutate(docentes_alunos)
+names(docente_matriculas_pe_sel_docentes_alunos)
+sumary(docente_matriculas_pe_sel$n_matriculas/docente_matriculas_pe_sel$n_docentes)
+
   # • Faça o teste do coeficiente de correlação linear de pearson e apresente sua resposta;
+
+cor(censo_pnud_pe_sel_docentes_alunos$IDHM, censo_pnud_pe_sel_docentes_alunos$docentes_alunos)
+cor.test(censo_pnud_pe_sel_docentes_alunos$IDHM, censo_pnud_pe_sel_docentes_alunos$docentes_alunos)
+
   # • Seu script deve salvar a base de dados criada para o cálculo em formato .RData;
 
+save(censo_pnud_pe_sel_docentes_alunos, file = "censo_pnud_pe_sel_docentes_alunos.RData")
+
 # 3. Usando o pacote ggplot2, apresente o gráfico de dispersão entre as duas variáveis (número de alunos por docente e IDHM).
+
+ggplot(censo_pnud_pe_sel_docentes_alunos, aes(IDHM, docentes_alunos))+geom_point()
+
